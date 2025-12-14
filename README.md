@@ -1,77 +1,78 @@
-# Construction Cost Calculator
-### A local-first construction estimator for people who have stared at a spreadsheet long enough to realise it is lying.
+/# Construction Cost Calculator
+### A local-first construction estimator for engineers who have seen things. Bad things. Mostly spreadsheets.
 
 ---
 
 ## What Is This?
 
-This is a **desktop construction cost calculator** built in **Python + PyQt5** for doing early-stage quantity and cost estimates **without**:
+This is a **desktop construction cost calculator** built in **Python + PyQt5** for producing early-stage quantities and costs **without**:
 
-- spreadsheets that slowly mutate into folklore  
-- cloud tools that require an account, a verification email, and forgiveness  
-- vendor software that assumes your site is flat, square, and blessed  
-- estimates based on “it was about this much last time”
+- spreadsheets held together by merged cells and hope  
+- cloud tools that require a login, a subscription, and an emotional support ticket  
+- vendor software that assumes your site is flat, square, and morally pure  
+- estimates that begin with “it should be roughly…”
 
-It runs locally. It works offline.  
-If your internet is down, this does not care.
+It runs locally.  
+It works offline.  
+It does not care about your Wi-Fi, your VPN, or your password manager having a moment.
 
 ---
 
 ## What This Does
 
 The application is split into focused calculator tabs.  
-Each tab does *one job*, correctly, without opinions.
+Each tab has one job. It does that job. It does not branch out into opinions.
 
-The **Summary** tab aggregates everything and does not ask how you feel about the result.
+The **Summary** tab aggregates everything and presents the result without sympathy.
 
 ### Breeze Block Calculator
 - Straight walls, curved walls, raceway reactors
-- Uses real block sizes and pallet counts
+- Uses real block dimensions and pallet counts
 - Calculates:
   - wall areas
   - block quantities
   - pallet counts
-  - leftover blocks you will argue about later
-- Default pricing included, overridable because reality always disagrees
+  - leftover blocks that will absolutely be “kept for later”
+- Default pricing included, overridable because pricing is a social construct
 
 ### Sweet Sand Calculator
 - Racetrack-shaped reactor bases
-- Flat fill plus corner fillets (because corners exist, despite drawings)
+- Flat fill plus corner fillets (because corners exist in reality)
 - Density-based mass calculation
 - Cost per tonne to total cost
-- Geometry that reflects how things are actually built, not how brochures imagine them
+- Geometry that reflects how things are actually built, not how drawings suggest they might be
 
 ### Concrete Works
 - Slabs, strip footings, walls, isolated footings
-- Volume, reinforcement mass, and cost breakdowns
-- No hidden coefficients
-- No “multiply by 1.3 just in case” magic
+- Volume, reinforcement mass, cost breakdowns
+- No hidden factors
+- No “multiply by 1.2 because vibes”
 
 ### Land Preparation
 - Bulk excavation
 - Trenches
 - Compaction by lifts and passes
-- Models how annoying compaction really is
-- Produces numbers you can defend in a meeting without sweating
+- Explicitly models how annoying compaction really is
+- Produces numbers you can say out loud in a meeting without apologising
 
 ### Manpower
 - Trade-based workforce modelling
 - Normal hours and overtime
 - Overtime factors that acknowledge labour laws exist
 - Mobilisation, demobilisation, overheads
-- Outputs total man-hours and cost without assuming people are machines
+- Outputs man-hours and cost without assuming humans are interchangeable units
 
 ### Equipment & Machinery
-- Per-machine breakdowns
+- Per-machine rows
 - Hire rate, utilisation, fuel burn
 - Fuel cost, mobilisation, overheads
-- Produces an actual breakdown instead of a suspicious round number
+- Produces an actual breakdown instead of a suspiciously round number
 
 ### Summary
 - Aggregates everything
 - Auto-recalculates after project load
 - Single source of truth
-- Exports a **proper PDF report** that looks deliberate
+- Exports a **proper PDF report** that looks like someone meant it
 
 ---
 
@@ -85,8 +86,8 @@ The **Summary** tab aggregates everything and does not ask how you feel about th
 
 No Adobe.  
 No Java.  
-No rituals.  
-No “why is this 400 MB”.
+No 17 GB updates.  
+No ancient curses.
 
 ---
 
@@ -109,20 +110,22 @@ As they should be.
 
 ---
 
-## Executable Release (Yes, Really)
+## Executable Release (For People Who Do Not Want Python Opinions)
 
-There is a **standalone EXE** available in the GitHub Releases section.
+A **standalone EXE** is available in the GitHub Releases section.
 
-- No Python install required
+- No Python installation required
 - No virtual environments
-- No command line incantations
-- Just download, double-click, and calculate things
+- No command line
+- No “it works on my machine” energy
 
-It is portable.  
-It does not phone home.  
-It does not update itself mid-calculation.
+Download it.  
+Double-click it.  
+It runs.
 
-If it breaks, it breaks honestly.
+It does not update itself mid-calculation.  
+It does not ask for permissions it doesn’t need.  
+It does not try to sell you a premium tier.
 
 ---
 
@@ -133,10 +136,10 @@ If it breaks, it breaks honestly.
 - No subscriptions
 - No telemetry
 - No popups asking if you’re enjoying the experience
-- Deterministic maths over “smart” estimates
+- Deterministic maths over optimism
 - UI that stays out of your way
 
-This tool exists because real projects need numbers **now**, not after logging in, syncing, or negotiating with a dashboard.
+This tool exists because real projects need numbers **now**, not after logging in, syncing, or negotiating with a dashboard that thinks everything is a KPI.
 
 ---
 
@@ -145,12 +148,13 @@ This tool exists because real projects need numbers **now**, not after logging i
 - A tender BOQ generator
 - A replacement for detailed design
 - A scheduling oracle
-- A solution to bad assumptions
+- A crystal ball
+- A substitute for thinking
 
 It is an **engineering calculator**.
 
-If the inputs are wrong, the outputs will also be wrong.
-But they will be wrong consistently.
+If the inputs are bad, the outputs will also be bad.
+But they will be bad in a consistent, repeatable, auditable way.
 
 ---
 
@@ -158,27 +162,17 @@ But they will be wrong consistently.
 
 This project is released under the **MIT License**.
 
-That means:
+Which means:
 - Use it
 - Modify it
 - Ship it
 - Embed it in something else
-- Do not sue the author if concrete behaves like concrete
+- Do not attempt to sue the author when concrete behaves like concrete
 
-If it saves you time, great.  
-If it saves you from one catastrophic spreadsheet decision, even better.
+No warranties.  
+No guarantees.  
+No miracles.
 
----
+Just software.
 
-## Final Note
 
-If this tool:
-- replaces one fragile spreadsheet
-- prevents one late-night recalculation spiral
-- or stops one meeting from devolving into “back-of-the-envelope maths”
-
-Then it has done exactly what it was built to do.
-
-No cloud.  
-No nonsense.  
-Just numbers.
