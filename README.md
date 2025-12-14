@@ -107,9 +107,6 @@ The files are:
 - diffable
 - email-friendly
 - intentionally ignored by git
-
-As they should be.
-
 ---
 
 ## Executable Release (For People Who Do Not Want Python Opinions)
