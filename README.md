@@ -1,11 +1,11 @@
-/# Construction Cost Calculator
+# Ash's Construction Cost Calculator
 ### A local-first construction estimator for engineers who have seen things. Bad things. Mostly spreadsheets.
 
 ---
 
 ## What Is This?
 
-This is a **desktop construction cost calculator** built in **Python + PyQt5** for producing early-stage quantities and costs **without**:
+This is a **desktop construction cost calculator** for producing early-stage quantities and costs **without**:
 
 - spreadsheets held together by merged cells and hope  
 - cloud tools that require a login, a subscription, and an emotional support ticket  
