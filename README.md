@@ -1,5 +1,8 @@
 # Ash's Construction Cost Calculator
-### A local-first construction estimator for engineers who have seen things. Bad things. Mostly spreadsheets.
+### A construction estimator for engineers who no longer accept vibes as a costing methodology
+
+<img width="677" height="530" alt="image" src="https://github.com/user-attachments/assets/55e4528d-ad00-44f6-aa32-f1b7d7b81068" />
+
 
 ---
 
