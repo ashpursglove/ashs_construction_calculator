@@ -166,7 +166,7 @@ Which means:
 - Modify it
 - Ship it
 - Embed it in something else
-- Do not attempt to sue the author when concrete behaves like concrete
+- Do not attempt to sue me when concrete behaves like concrete
 
 No warranties.  
 No guarantees.  
