@@ -79,10 +79,9 @@ The **Summary** tab aggregates everything and presents the result without sympat
 ## PDF Export
 
 - Choose filename and location
-- Dark blue + orange theme (same as the app)
 - Opens automatically after generation
-- Browser tab title reads:
-  Construction Report
+- Makes it look like you know what you're doing
+
 
 No Adobe.  
 No Java.  
