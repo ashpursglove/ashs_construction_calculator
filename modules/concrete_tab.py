@@ -1,4 +1,3 @@
-
 """
 concrete_tab.py
 
@@ -14,7 +13,7 @@ For each element type, the tab estimates:
 - Concrete weight (kg)
 - Approximate vertical formwork area (m²)
 - Rebar weight (kg and tonnes) using a specified kg/m³ intensity
-- Material cost for concrete and rebar (USD)
+- Material cost for concrete, rebar and formwork (USD)
 - Total material cost (USD)
 
 It also shows a short description of the selected element type so that
@@ -25,9 +24,9 @@ Assumptions & Defaults
 ----------------------
 - Concrete density default: 2400 kg/m³
 - Concrete cost default: ~60 USD/m³
-- Rebar intensity default: 100 kg/m³, typical for reinforced
-  building elements.
+- Rebar intensity default: 100 kg/m³ (typical for reinforced building elements)
 - Rebar cost default: ~640 USD/t
+- Formwork rate default: ~15 USD/m² (placeholder - override with real rates)
 
 Geometry models (per element)
 -----------------------------
@@ -90,6 +89,8 @@ All dimensions are in meters unless noted.
         (Four vertical sides formed.)
 """
 
+from __future__ import annotations
+
 from typing import Optional
 
 from PyQt5 import QtCore, QtWidgets
@@ -101,14 +102,15 @@ class ConcreteTab(QtWidgets.QWidget):
     Designed to be dropped into a QTabWidget.
     """
 
-
-
     # ------------------------------------------------------------------
     # Project Save/Load
     # ------------------------------------------------------------------
 
-
     def export_state(self) -> dict:
+        """
+        Return a JSON-serializable snapshot of ConcreteTab inputs.
+        Keep keys stable for project-file compatibility.
+        """
         return {
             "element_type_index": int(self.element_type_combo.currentIndex()),
 
@@ -129,7 +131,7 @@ class ConcreteTab(QtWidgets.QWidget):
             "wall_thickness_cm": float(self.wall_thickness_spin.value()),
             "wall_count": int(self.wall_count_spin.value()),
 
-            # Isolated footing (iso_* is correct)
+            # Isolated footing
             "iso_length": float(self.iso_length_spin.value()),
             "iso_width": float(self.iso_width_spin.value()),
             "iso_thickness_cm": float(self.iso_thickness_spin.value()),
@@ -139,12 +141,15 @@ class ConcreteTab(QtWidgets.QWidget):
             "conc_density": float(self.conc_density_spin.value()),
             "conc_cost": float(self.conc_cost_spin.value()),
             "rebar_intensity": float(self.rebar_intensity_spin.value()),
-            "rebar_cost": float(self.rebar_cost_spin.value()),
+            "rebar_cost_per_t": float(self.rebar_cost_spin.value()),
+            "formwork_rate": float(self.formwork_rate_spin.value()),
         }
 
-
-
     def import_state(self, state: dict) -> None:
+        """
+        Restore ConcreteTab inputs from a saved project snapshot.
+        Missing keys fall back to existing widget values (backwards compatible).
+        """
         if not isinstance(state, dict):
             return
 
@@ -179,14 +184,17 @@ class ConcreteTab(QtWidgets.QWidget):
         self.conc_density_spin.setValue(float(state.get("conc_density", self.conc_density_spin.value())))
         self.conc_cost_spin.setValue(float(state.get("conc_cost", self.conc_cost_spin.value())))
         self.rebar_intensity_spin.setValue(float(state.get("rebar_intensity", self.rebar_intensity_spin.value())))
-        self.rebar_cost_spin.setValue(float(state.get("rebar_cost", self.rebar_cost_spin.value())))
+        self.rebar_cost_spin.setValue(float(state.get("rebar_cost_per_t", self.rebar_cost_spin.value())))
+        self.formwork_rate_spin.setValue(float(state.get("formwork_rate", self.formwork_rate_spin.value())))
 
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self._build_ui()
         self._connect_signals()
-        # Initialise element description for the default selection
         self._update_element_description(self.element_type_combo.currentIndex())
 
     # ------------------------------------------------------------------
@@ -195,7 +203,6 @@ class ConcreteTab(QtWidgets.QWidget):
 
     def _build_ui(self) -> None:
         """Create all widgets and layouts."""
-
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(10)
@@ -204,7 +211,6 @@ class ConcreteTab(QtWidgets.QWidget):
         geom_group = QtWidgets.QGroupBox("Element Type and Geometry", self)
         geom_layout = QtWidgets.QVBoxLayout(geom_group)
 
-        # Element type selector
         type_layout = QtWidgets.QHBoxLayout()
         type_layout.addWidget(QtWidgets.QLabel("Element type:"))
         self.element_type_combo = QtWidgets.QComboBox(geom_group)
@@ -218,21 +224,18 @@ class ConcreteTab(QtWidgets.QWidget):
         )
         type_layout.addWidget(self.element_type_combo)
         type_layout.addStretch(1)
-
         geom_layout.addLayout(type_layout)
 
-        # Description label for selected element type
+        # Description label
         self.element_description_label = QtWidgets.QLabel(geom_group)
         self.element_description_label.setWordWrap(True)
-        self.element_description_label.setStyleSheet(
-            "color: #A9B0C5; font-size: 11px;"
-        )
+        self.element_description_label.setStyleSheet("color: #A9B0C5; font-size: 11px;")
         geom_layout.addWidget(self.element_description_label)
 
         # Stacked widget for element-specific geometry inputs
         self.geom_stack = QtWidgets.QStackedWidget(geom_group)
 
-        # --- Slab / Base geometry widget ---
+        # --- Slab / Base ---
         self.slab_widget = QtWidgets.QWidget(geom_group)
         slab_form = QtWidgets.QFormLayout(self.slab_widget)
         slab_form.setLabelAlignment(QtCore.Qt.AlignRight)
@@ -255,7 +258,7 @@ class ConcreteTab(QtWidgets.QWidget):
         slab_form.addRow("Thickness T (cm):", self.slab_thickness_spin)
         slab_form.addRow("Number of slabs:", self.slab_count_spin)
 
-        # --- Strip Footing geometry widget ---
+        # --- Strip Footing ---
         self.footing_strip_widget = QtWidgets.QWidget(geom_group)
         strip_form = QtWidgets.QFormLayout(self.footing_strip_widget)
         strip_form.setLabelAlignment(QtCore.Qt.AlignRight)
@@ -274,7 +277,7 @@ class ConcreteTab(QtWidgets.QWidget):
         strip_form.addRow("Footing width W (m):", self.strip_width_spin)
         strip_form.addRow("Footing thickness T (cm):", self.strip_thickness_spin)
 
-        # --- Wall geometry widget ---
+        # --- Wall ---
         self.wall_widget = QtWidgets.QWidget(geom_group)
         wall_form = QtWidgets.QFormLayout(self.wall_widget)
         wall_form.setLabelAlignment(QtCore.Qt.AlignRight)
@@ -300,7 +303,7 @@ class ConcreteTab(QtWidgets.QWidget):
         wall_form.addRow("Wall thickness T (cm):", self.wall_thickness_spin)
         wall_form.addRow("Number of walls:", self.wall_count_spin)
 
-        # --- Isolated Footing geometry widget ---
+        # --- Isolated Footing ---
         self.footing_iso_widget = QtWidgets.QWidget(geom_group)
         iso_form = QtWidgets.QFormLayout(self.footing_iso_widget)
         iso_form.setLabelAlignment(QtCore.Qt.AlignRight)
@@ -323,7 +326,7 @@ class ConcreteTab(QtWidgets.QWidget):
         iso_form.addRow("Footing thickness T (cm):", self.iso_thickness_spin)
         iso_form.addRow("Number of footings:", self.iso_count_spin)
 
-        # Add each geometry widget to stacked widget
+        # Add to stack
         self.geom_stack.addWidget(self.slab_widget)           # index 0
         self.geom_stack.addWidget(self.footing_strip_widget)  # index 1
         self.geom_stack.addWidget(self.wall_widget)           # index 2
@@ -331,7 +334,6 @@ class ConcreteTab(QtWidgets.QWidget):
 
         geom_layout.addWidget(self.geom_stack)
 
-        # Helpful note (general)
         note_label = QtWidgets.QLabel(
             "Note: This tab provides approximate quantities for concrete, rebar and formwork.\n"
             "Always cross-check with structural design drawings and local codes."
@@ -357,7 +359,6 @@ class ConcreteTab(QtWidgets.QWidget):
         self.conc_cost_spin.setDecimals(2)
         self.conc_cost_spin.setRange(0.0, 1000.0)
         self.conc_cost_spin.setSingleStep(5.0)
-        # Example: ~200–225 SAR/m³ at SAR≈3.75 / USD ⇒ around 55–60 USD/m³
         self.conc_cost_spin.setValue(60.0)
 
         # Rebar intensity (kg/m³)
@@ -384,16 +385,24 @@ class ConcreteTab(QtWidgets.QWidget):
         self.rebar_cost_spin = QtWidgets.QDoubleSpinBox(material_group)
         self.rebar_cost_spin.setSuffix(" USD/t")
         self.rebar_cost_spin.setDecimals(2)
-        self.rebar_cost_spin.setRange(0.0, 2000.0)
+        self.rebar_cost_spin.setRange(0.0, 20000.0)
         self.rebar_cost_spin.setSingleStep(10.0)
-        # Example: ~2400 SAR/t ≈ 640 USD/t
         self.rebar_cost_spin.setValue(640.0)
+
+        # Formwork rate (USD/m²)
+        self.formwork_rate_spin = QtWidgets.QDoubleSpinBox(material_group)
+        self.formwork_rate_spin.setSuffix(" USD/m²")
+        self.formwork_rate_spin.setDecimals(2)
+        self.formwork_rate_spin.setRange(0.0, 5000.0)
+        self.formwork_rate_spin.setSingleStep(1.0)
+        self.formwork_rate_spin.setValue(15.0)
 
         material_form.addRow("Concrete density:", self.conc_density_spin)
         material_form.addRow("Concrete cost:", self.conc_cost_spin)
         material_form.addRow("Rebar intensity:", self.rebar_intensity_spin)
         material_form.addRow("Rebar intensity preset:", self.rebar_level_combo)
         material_form.addRow("Rebar cost:", self.rebar_cost_spin)
+        material_form.addRow("Formwork rate:", self.formwork_rate_spin)
 
         # ---------------- Buttons ----------------
         button_layout = QtWidgets.QHBoxLayout()
@@ -416,19 +425,25 @@ class ConcreteTab(QtWidgets.QWidget):
         self.lbl_volume = QtWidgets.QLabel("0.000 m³", result_group)
         self.lbl_conc_weight = QtWidgets.QLabel("0 kg", result_group)
         self.lbl_form_area = QtWidgets.QLabel("0.00 m²", result_group)
+
         self.lbl_rebar_kg = QtWidgets.QLabel("0 kg", result_group)
         self.lbl_rebar_tons = QtWidgets.QLabel("0.000 t", result_group)
+
         self.lbl_conc_cost = QtWidgets.QLabel("$0.00", result_group)
         self.lbl_rebar_cost = QtWidgets.QLabel("$0.00", result_group)
+        self.lbl_formwork_cost = QtWidgets.QLabel("$0.00", result_group)
         self.lbl_total_cost = QtWidgets.QLabel("$0.00", result_group)
 
         result_form.addRow("Concrete volume:", self.lbl_volume)
         result_form.addRow("Concrete weight:", self.lbl_conc_weight)
         result_form.addRow("Formwork area (vertical):", self.lbl_form_area)
+
         result_form.addRow("Rebar quantity:", self.lbl_rebar_kg)
         result_form.addRow("Rebar quantity (t):", self.lbl_rebar_tons)
+
         result_form.addRow("Concrete cost:", self.lbl_conc_cost)
         result_form.addRow("Rebar cost:", self.lbl_rebar_cost)
+        result_form.addRow("Formwork cost:", self.lbl_formwork_cost)
         result_form.addRow("Total material cost:", self.lbl_total_cost)
 
         # ---------------- Assemble layout ----------------
@@ -465,12 +480,8 @@ class ConcreteTab(QtWidgets.QWidget):
 
     def _connect_signals(self) -> None:
         """Connect signals to slots."""
-        self.element_type_combo.currentIndexChanged.connect(
-            self._on_element_type_changed
-        )
-        self.rebar_level_combo.currentIndexChanged.connect(
-            self._on_rebar_level_changed
-        )
+        self.element_type_combo.currentIndexChanged.connect(self._on_element_type_changed)
+        self.rebar_level_combo.currentIndexChanged.connect(self._on_rebar_level_changed)
         self.calculate_button.clicked.connect(self._on_calculate_clicked)
         self.reset_button.clicked.connect(self._on_reset_clicked)
 
@@ -479,31 +490,24 @@ class ConcreteTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     def _update_element_description(self, index: int) -> None:
-        """
-        Update the text under the element selector to explain
-        what the currently selected element type represents.
-        """
+        """Update the descriptive text for the selected element type."""
         if index == 0:
-            # Slab / Base
             text = (
                 "Slab / Base: A flat, horizontal concrete element such as a floor slab, "
                 "equipment pad or raft base. Defined by length, width and thickness, "
                 "with one or more identical slabs."
             )
         elif index == 1:
-            # Strip footing
             text = (
                 "Strip Footing: A continuous strip of concrete running under walls or rows of columns. "
                 "Defined by total strip length, width and thickness. Often cast in a trench."
             )
         elif index == 2:
-            # Wall
             text = (
                 "Wall: A vertical reinforced concrete wall, such as a retaining wall or tank wall. "
                 "Defined by length, clear height and thickness, with an optional count of identical walls."
             )
         elif index == 3:
-            # Isolated footing
             text = (
                 "Isolated Footing: A single pad footing under a column or small group of columns. "
                 "Defined by plan length, plan width and thickness, with a count for multiple footings."
@@ -540,8 +544,16 @@ class ConcreteTab(QtWidgets.QWidget):
         self.rebar_intensity_spin.setValue(value)
         self.rebar_intensity_spin.blockSignals(False)
 
+    def _on_calculate_clicked(self) -> None:
+        """Perform calculations for the selected element type (interactive, with dialogs)."""
+        self._calculate_and_update(show_dialogs=True)
 
-
+    def recalculate(self, show_dialogs: bool = False) -> None:
+        """
+        Public recalculation hook used by MainWindow after loading a project.
+        Defaults to silent mode (no popups).
+        """
+        self._calculate_and_update(show_dialogs=show_dialogs)
 
     def _calculate_and_update(self, show_dialogs: bool = True) -> None:
         """
@@ -559,53 +571,46 @@ class ConcreteTab(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.warning(self, "Invalid Input", str(exc))
             return
 
-        # Materials & cost
-        conc_density = float(self.conc_density_spin.value())      # kg/m³
-        conc_cost = float(self.conc_cost_spin.value())            # USD/m³
-        rebar_intensity = float(self.rebar_intensity_spin.value())  # kg/m³
-        rebar_cost = float(self.rebar_cost_spin.value())          # USD/kg
-        formwork_rate = float(self.formwork_rate_spin.value())    # USD/m²
+        # Materials & cost inputs
+        conc_density = float(self.conc_density_spin.value())           # kg/m³
+        conc_cost_per_m3 = float(self.conc_cost_spin.value())          # USD/m³
+        rebar_intensity = float(self.rebar_intensity_spin.value())     # kg/m³
+        rebar_cost_per_t = float(self.rebar_cost_spin.value())         # USD/t
+        formwork_rate = float(self.formwork_rate_spin.value())         # USD/m²
 
+        # Unit conversion: USD/t -> USD/kg
+        rebar_cost_per_kg = rebar_cost_per_t / 1000.0
+
+        # Quantities
         conc_weight_kg = vol_m3 * conc_density
         rebar_kg = vol_m3 * rebar_intensity
         rebar_tons = rebar_kg / 1000.0
 
-        cost_conc = vol_m3 * conc_cost
-        cost_rebar = rebar_kg * rebar_cost
-        cost_form = form_area_m2 * formwork_rate
-        total = cost_conc + cost_rebar + cost_form
+        # Costs
+        cost_conc = vol_m3 * conc_cost_per_m3
+        cost_rebar = rebar_kg * rebar_cost_per_kg
+        cost_formwork = form_area_m2 * formwork_rate
+        total = cost_conc + cost_rebar + cost_formwork
 
-        # Update UI
-        self.lbl_volume.setText(f"{vol_m3:.3f} m³")
-        self.lbl_form_area.setText(f"{form_area_m2:.2f} m²")
+        # Update UI (with sane formatting)
+        self.lbl_volume.setText(f"{vol_m3:,.3f} m³")
+        self.lbl_conc_weight.setText(f"{conc_weight_kg:,.0f} kg")
+        self.lbl_form_area.setText(f"{form_area_m2:,.2f} m²")
+
         self.lbl_rebar_kg.setText(f"{rebar_kg:,.0f} kg")
-        self.lbl_rebar_tons.setText(f"{rebar_tons:.3f} t")
+        self.lbl_rebar_tons.setText(f"{rebar_tons:,.3f} t")
+
         self.lbl_conc_cost.setText(f"${cost_conc:,.2f}")
         self.lbl_rebar_cost.setText(f"${cost_rebar:,.2f}")
+        self.lbl_formwork_cost.setText(f"${cost_formwork:,.2f}")
         self.lbl_total_cost.setText(f"${total:,.2f}")
-
-
-    def _on_calculate_clicked(self) -> None:
-        """Perform calculations for the selected element type (interactive, with dialogs)."""
-        self._calculate_and_update(show_dialogs=True)
-
-
-    def recalculate(self, show_dialogs: bool = False) -> None:
-        """
-        Public recalculation hook used by MainWindow after loading a project.
-        Defaults to silent mode (no popups).
-        """
-        self._calculate_and_update(show_dialogs=show_dialogs)
-
-
 
     def _calculate_geometry(self, element_index: int) -> tuple[float, float]:
         """
         Calculate volume (m³) and approximate formwork area (m²)
         for the selected element type.
 
-        Raises ValueError if any geometric input is non-positive
-        where it must be.
+        Raises ValueError if any geometric input is non-positive where it must be.
         """
         if element_index == 0:
             # Slab / Base
@@ -614,13 +619,12 @@ class ConcreteTab(QtWidgets.QWidget):
             T_cm = float(self.slab_thickness_spin.value())
             N = int(self.slab_count_spin.value())
 
-            T = T_cm / 100.0  # cm → m
-
+            T = T_cm / 100.0
             if L <= 0 or W <= 0 or T <= 0 or N <= 0:
                 raise ValueError("For slabs, length, width, thickness and count must all be > 0.")
 
             vol_m3 = L * W * T * N
-            form_area = 2.0 * (L + W) * T * N  # vertical sides
+            form_area = 2.0 * (L + W) * T * N
 
         elif element_index == 1:
             # Strip footing
@@ -629,12 +633,10 @@ class ConcreteTab(QtWidgets.QWidget):
             T_cm = float(self.strip_thickness_spin.value())
 
             T = T_cm / 100.0
-
             if L <= 0 or W <= 0 or T <= 0:
                 raise ValueError("For strip footings, length, width and thickness must all be > 0.")
 
             vol_m3 = L * W * T
-            # Approx: two long sides formed, ends ignored
             form_area = 2.0 * L * T
 
         elif element_index == 2:
@@ -645,12 +647,10 @@ class ConcreteTab(QtWidgets.QWidget):
             N = int(self.wall_count_spin.value())
 
             T = T_cm / 100.0
-
             if L <= 0 or H <= 0 or T <= 0 or N <= 0:
                 raise ValueError("For walls, length, height, thickness and count must all be > 0.")
 
             vol_m3 = L * H * T * N
-            # Two faces formed, end faces ignored
             form_area = 2.0 * L * H * N
 
         elif element_index == 3:
@@ -661,14 +661,11 @@ class ConcreteTab(QtWidgets.QWidget):
             N = int(self.iso_count_spin.value())
 
             T = T_cm / 100.0
-
             if L <= 0 or W <= 0 or T <= 0 or N <= 0:
-                raise ValueError(
-                    "For isolated footings, length, width, thickness and count must all be > 0."
-                )
+                raise ValueError("For isolated footings, length, width, thickness and count must all be > 0.")
 
             vol_m3 = L * W * T * N
-            form_area = 2.0 * (L + W) * T * N  # four vertical sides
+            form_area = 2.0 * (L + W) * T * N
 
         else:
             raise ValueError("Unknown element type index.")
@@ -677,8 +674,7 @@ class ConcreteTab(QtWidgets.QWidget):
 
     def _on_reset_clicked(self) -> None:
         """Reset all inputs and results to default values."""
-
-        # Reset geometry for each element
+        # Geometry defaults
         self.slab_length_spin.setValue(0.0)
         self.slab_width_spin.setValue(0.0)
         self.slab_thickness_spin.setValue(0.0)
@@ -698,14 +694,15 @@ class ConcreteTab(QtWidgets.QWidget):
         self.iso_thickness_spin.setValue(0.0)
         self.iso_count_spin.setValue(1)
 
-        # Reset materials
+        # Materials defaults
         self.conc_density_spin.setValue(2400.0)
         self.conc_cost_spin.setValue(60.0)
         self.rebar_intensity_spin.setValue(100.0)
-        self.rebar_level_combo.setCurrentIndex(0)  # Custom
+        self.rebar_level_combo.setCurrentIndex(0)
         self.rebar_cost_spin.setValue(640.0)
+        self.formwork_rate_spin.setValue(15.0)
 
-        # Clear results
+        # Results defaults
         self.lbl_volume.setText("0.000 m³")
         self.lbl_conc_weight.setText("0 kg")
         self.lbl_form_area.setText("0.00 m²")
@@ -713,7 +710,7 @@ class ConcreteTab(QtWidgets.QWidget):
         self.lbl_rebar_tons.setText("0.000 t")
         self.lbl_conc_cost.setText("$0.00")
         self.lbl_rebar_cost.setText("$0.00")
+        self.lbl_formwork_cost.setText("$0.00")
         self.lbl_total_cost.setText("$0.00")
 
-        # Reset element description to current selection
         self._update_element_description(self.element_type_combo.currentIndex())

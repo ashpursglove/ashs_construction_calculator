@@ -1,6 +1,3 @@
-
-
-
 """
 summary_tab.py
 
@@ -140,6 +137,11 @@ class SummaryTab(QtWidgets.QWidget):
         self.lbl_block_area = QtWidgets.QLabel("N/A", qty_group)
         self.lbl_sand_volume = QtWidgets.QLabel("N/A", qty_group)
         self.lbl_concrete_volume = QtWidgets.QLabel("N/A", qty_group)
+
+        # NEW: extra concrete snapshots (if available)
+        self.lbl_concrete_formwork_area = QtWidgets.QLabel("N/A", qty_group)
+        self.lbl_concrete_rebar = QtWidgets.QLabel("N/A", qty_group)
+
         self.lbl_land_cut_volume = QtWidgets.QLabel("N/A", qty_group)
         self.lbl_manhours = QtWidgets.QLabel("N/A", qty_group)
         self.lbl_equipment_hours = QtWidgets.QLabel("N/A", qty_group)
@@ -147,6 +149,8 @@ class SummaryTab(QtWidgets.QWidget):
         qty_form.addRow("Total blockwork area:", self.lbl_block_area)
         qty_form.addRow("Sweet sand volume:", self.lbl_sand_volume)
         qty_form.addRow("Concrete volume:", self.lbl_concrete_volume)
+        qty_form.addRow("Concrete formwork area:", self.lbl_concrete_formwork_area)
+        qty_form.addRow("Concrete rebar quantity:", self.lbl_concrete_rebar)
         qty_form.addRow("Land prep cut volume:", self.lbl_land_cut_volume)
         qty_form.addRow("Total man-hours:", self.lbl_manhours)
         qty_form.addRow("Equipment operating hours:", self.lbl_equipment_hours)
@@ -252,7 +256,7 @@ class SummaryTab(QtWidgets.QWidget):
         self._cost_sand = self._parse_currency_label(sand_cost_lbl)
         self.lbl_sand_cost.setText(f"${self._cost_sand:,.2f}")
 
-        # Sweet sand volume – prefer your actual label name
+        # Sweet sand volume
         sand_volume = "N/A"
         for candidate in ["lbl_volume_total", "lbl_total_volume", "lbl_total_sand_volume", "lbl_total_volume_m3"]:
             sand_volume = self._safe_label_text(self.sweet_sand_tab, candidate, "N/A")
@@ -260,14 +264,12 @@ class SummaryTab(QtWidgets.QWidget):
                 break
         self.lbl_sand_volume.setText(sand_volume)
 
-
-
         # ------------ Concrete cost ------------
         concrete_cost_lbl = getattr(self.concrete_tab, "lbl_total_cost", None)
         self._cost_concrete = self._parse_currency_label(concrete_cost_lbl)
         self.lbl_concrete_cost.setText(f"${self._cost_concrete:,.2f}")
 
-        # Concrete volume – your tab uses lbl_volume
+        # Concrete volume
         concrete_volume = "N/A"
         for candidate in ["lbl_volume", "lbl_concrete_volume", "lbl_total_concrete_volume", "lbl_concrete_vol"]:
             concrete_volume = self._safe_label_text(self.concrete_tab, candidate, "N/A")
@@ -275,7 +277,20 @@ class SummaryTab(QtWidgets.QWidget):
                 break
         self.lbl_concrete_volume.setText(concrete_volume)
 
+        # NEW: Concrete formwork area + rebar snapshot (defensive)
+        concrete_form_area = "N/A"
+        for candidate in ["lbl_form_area", "lbl_formwork_area", "lbl_concrete_form_area"]:
+            concrete_form_area = self._safe_label_text(self.concrete_tab, candidate, "N/A")
+            if concrete_form_area != "N/A":
+                break
+        self.lbl_concrete_formwork_area.setText(concrete_form_area)
 
+        concrete_rebar = "N/A"
+        for candidate in ["lbl_rebar_kg", "lbl_rebar_qty", "lbl_rebar"]:
+            concrete_rebar = self._safe_label_text(self.concrete_tab, candidate, "N/A")
+            if concrete_rebar != "N/A":
+                break
+        self.lbl_concrete_rebar.setText(concrete_rebar)
 
         # ------------ Land preparation cost ------------
         land_cost_lbl = getattr(self.land_prep_tab, "lbl_total_cost", None)
@@ -321,8 +336,6 @@ class SummaryTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Export report
     # ------------------------------------------------------------------
-    
-
 
     def _on_export_report_clicked(self) -> None:
         """
@@ -341,7 +354,7 @@ class SummaryTab(QtWidgets.QWidget):
             )
             return
 
-        # Default filename with timestamp (nice for releases and avoids overwrites)
+        # Default filename with timestamp
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         default_name = f"Ash's Construction_Planner_Report_{timestamp}.pdf"
 
@@ -349,7 +362,6 @@ class SummaryTab(QtWidgets.QWidget):
         start_dir = getattr(self, "_last_export_dir", os.getcwd())
         default_path = os.path.join(start_dir, default_name)
 
-        # Let the user choose where to save and what to name it
         selected_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             "Save PDF Report",
@@ -358,14 +370,11 @@ class SummaryTab(QtWidgets.QWidget):
         )
 
         if not selected_path:
-            # User cancelled
             return
 
-        # Ensure .pdf extension
         if not selected_path.lower().endswith(".pdf"):
             selected_path += ".pdf"
 
-        # Store directory for next time
         self._last_export_dir = os.path.dirname(selected_path)
 
         try:
@@ -378,19 +387,14 @@ class SummaryTab(QtWidgets.QWidget):
             )
             return
 
-        # Try to open the PDF with the default OS handler
         try:
             self._open_file(selected_path)
         except Exception:
-            # Don't fail hard, just inform user where it was saved
             QtWidgets.QMessageBox.information(
                 self,
                 "Report Generated",
                 f"Report saved to:\n{selected_path}",
             )
-
-
-
 
     def _write_pdf(self, path: str) -> None:
         """
@@ -405,28 +409,19 @@ class SummaryTab(QtWidgets.QWidget):
         margin = 40
         y = height - margin
 
-        # -------------------------------------------------------------
-        # Signature theme colours (match your app)
-        # -------------------------------------------------------------
+        # Theme colours
         BG = colors.HexColor("#050B1A")          # deep navy background
-        PANEL = colors.HexColor("#0B1020")       # slightly lighter panel
         BORDER = colors.HexColor("#223056")      # subtle borders/lines
         TEXT = colors.HexColor("#F5F5F5")        # main text
         TEXT_DIM = colors.HexColor("#A9B0C5")    # secondary text
         ORANGE = colors.HexColor("#FF7A00")      # signature accent
-        ORANGE_DARK = colors.HexColor("#E96F00") # pressed/darker accent
 
         def paint_page_background() -> None:
-            """
-            Fill the entire page with the dark theme background.
-            Must be called once per page (including after showPage()).
-            """
             c.saveState()
             c.setFillColor(BG)
             c.rect(0, 0, width, height, stroke=0, fill=1)
             c.restoreState()
 
-        # Paint background for the first page
         paint_page_background()
 
         def new_page() -> None:
@@ -436,9 +431,6 @@ class SummaryTab(QtWidgets.QWidget):
             y = height - margin
 
         def hline(offset: int = 8) -> None:
-            """
-            Draw a subtle horizontal separator line.
-            """
             nonlocal y
             line_y = y - offset
             if line_y < margin + 20:
@@ -451,9 +443,6 @@ class SummaryTab(QtWidgets.QWidget):
             y = line_y - 10
 
         def line(text: str = "", fontsize: int = 10, dy: int = 14, dim: bool = False) -> None:
-            """
-            Draw a single line of text, with basic page-break handling.
-            """
             nonlocal y
             if y < margin + 40:
                 new_page()
@@ -466,23 +455,16 @@ class SummaryTab(QtWidgets.QWidget):
             y -= dy
 
         def paragraph(lines, fontsize: int = 10, dy: int = 14, dim: bool = False) -> None:
-            """
-            Draw a list of lines as a paragraph with page-break handling.
-            """
             for t in lines:
                 line(t, fontsize=fontsize, dy=dy, dim=dim)
 
         def section_header(title: str) -> None:
-            """
-            Draw a bold orange rounded bar with white title text.
-            """
             nonlocal y
             bar_height = 20
 
             if y < margin + bar_height + 30:
                 new_page()
 
-            # Orange bar
             c.setFillColor(ORANGE)
             c.setStrokeColor(ORANGE)
             c.roundRect(
@@ -495,18 +477,14 @@ class SummaryTab(QtWidgets.QWidget):
                 fill=1,
             )
 
-            # Title
             c.setFillColor(BG)
             c.setFont("Helvetica-Bold", 11)
             c.drawString(margin + 8, y - bar_height + 9, title)
 
-            # Reset cursor below bar
             y -= bar_height + 14
             c.setFillColor(TEXT)
 
-        # ------------------------------------------------------------------
-        # Document header
-        # ------------------------------------------------------------------
+        # Header
         c.setFont("Helvetica-Bold", 18)
         c.setFillColor(ORANGE)
         c.drawString(margin, y, "Construction Project Detailed Cost Report")
@@ -519,19 +497,21 @@ class SummaryTab(QtWidgets.QWidget):
 
         hline()
 
-        # ------------------------------------------------------------------
         # 1) Cost Summary
-        # ------------------------------------------------------------------
         section_header("1. Cost Summary")
 
-        paragraph([
-            f"1.1 Blockwork (breeze blocks):      {self.lbl_blocks_cost.text()}",
-            f"1.2 Sweet sand (reactor base):      {self.lbl_sand_cost.text()}",
-            f"1.3 Concrete works:                 {self.lbl_concrete_cost.text()}",
-            f"1.4 Land preparation:               {self.lbl_land_prep_cost.text()}",
-            f"1.5 Manpower:                       {self.lbl_manpower_cost.text()}",
-            f"1.6 Equipment & machinery:          {self.lbl_equipment_cost.text()}",
-        ], fontsize=10, dy=14)
+        paragraph(
+            [
+                f"1.1 Blockwork (breeze blocks):      {self.lbl_blocks_cost.text()}",
+                f"1.2 Sweet sand (reactor base):      {self.lbl_sand_cost.text()}",
+                f"1.3 Concrete works:                 {self.lbl_concrete_cost.text()}",
+                f"1.4 Land preparation:               {self.lbl_land_prep_cost.text()}",
+                f"1.5 Manpower:                       {self.lbl_manpower_cost.text()}",
+                f"1.6 Equipment & machinery:          {self.lbl_equipment_cost.text()}",
+            ],
+            fontsize=10,
+            dy=14,
+        )
 
         line()
         c.setFont("Helvetica-Bold", 12)
@@ -542,9 +522,7 @@ class SummaryTab(QtWidgets.QWidget):
 
         hline()
 
-        # ------------------------------------------------------------------
         # 2) Blockwork Breakdown
-        # ------------------------------------------------------------------
         section_header("2. Blockwork (Breeze Blocks)")
 
         block_area_total = self.lbl_block_area.text()
@@ -560,58 +538,94 @@ class SummaryTab(QtWidgets.QWidget):
         pallets_text = lbl_pallets.text() if isinstance(lbl_pallets, QtWidgets.QLabel) else "N/A"
         leftover_text = lbl_leftover.text() if isinstance(lbl_leftover, QtWidgets.QLabel) else "N/A"
 
-        paragraph([
-            f"2.1 Total blockwork area:           {block_area_total}",
-            f"2.2 Straight walls area:            {wall_area}",
-            f"2.3 Half-circle arcs area:          {arc_area}",
-            f"2.4 Raceway reactor walls area:     {reactor_area}",
-            "",
-            f"2.5 Blocks required:                {blocks_text}",
-            f"2.6 Pallets required:               {pallets_text}",
-            f"2.7 Leftover blocks (last pallet):  {leftover_text}",
-        ], fontsize=10, dy=14)
+        paragraph(
+            [
+                f"2.1 Total blockwork area:           {block_area_total}",
+                f"2.2 Straight walls area:            {wall_area}",
+                f"2.3 Half-circle arcs area:          {arc_area}",
+                f"2.4 Raceway reactor walls area:     {reactor_area}",
+                "",
+                f"2.5 Blocks required:                {blocks_text}",
+                f"2.6 Pallets required:               {pallets_text}",
+                f"2.7 Leftover blocks (last pallet):  {leftover_text}",
+            ],
+            fontsize=10,
+            dy=14,
+        )
 
         hline()
-
-        # ------------------------------------------------------------------
-        # Everything below this point is your existing report content.
-        # We keep it exactly as-is, just with the new styling helpers above.
-        # ------------------------------------------------------------------
 
         # 3) Sweet Sand Breakdown
         section_header("3. Sweet Sand (Reactor Base Fill)")
-        paragraph([
-            f"3.1 Total sweet sand cost:          {self.lbl_sand_cost.text()}",
-            f"3.2 Sweet sand volume:              {self.lbl_sand_volume.text()}",
-        ], fontsize=10, dy=14)
+        paragraph(
+            [
+                f"3.1 Total sweet sand cost:          {self.lbl_sand_cost.text()}",
+                f"3.2 Sweet sand volume:              {self.lbl_sand_volume.text()}",
+            ],
+            fontsize=10,
+            dy=14,
+        )
         hline()
 
-        # 4) Concrete Works Breakdown
+        # 4) Concrete Works Breakdown (UPDATED)
         section_header("4. Concrete Works")
-        paragraph([
-            f"4.1 Total concrete cost:            {self.lbl_concrete_cost.text()}",
-            f"4.2 Concrete volume:                {self.lbl_concrete_volume.text()}",
-        ], fontsize=10, dy=14)
+
+        concrete_volume = self.lbl_concrete_volume.text()
+        concrete_weight = self._safe_label_text(self.concrete_tab, "lbl_conc_weight", "N/A")
+        concrete_form_area = self._safe_label_text(self.concrete_tab, "lbl_form_area", "N/A")
+        rebar_kg = self._safe_label_text(self.concrete_tab, "lbl_rebar_kg", "N/A")
+        rebar_t = self._safe_label_text(self.concrete_tab, "lbl_rebar_tons", "N/A")
+
+        conc_cost = self._safe_label_text(self.concrete_tab, "lbl_conc_cost", "N/A")
+        rebar_cost = self._safe_label_text(self.concrete_tab, "lbl_rebar_cost", "N/A")
+        formwork_cost = self._safe_label_text(self.concrete_tab, "lbl_formwork_cost", "N/A")
+
+        paragraph(
+            [
+                f"4.1 Total concrete works cost (tab total): {self.lbl_concrete_cost.text()}",
+                "",
+                "4.2 Key quantities:",
+                f"      • Concrete volume:            {concrete_volume}",
+                f"      • Concrete weight:            {concrete_weight}",
+                f"      • Rebar quantity:             {rebar_kg} ({rebar_t})",
+                f"      • Formwork area (vertical):   {concrete_form_area}",
+                "",
+                "4.3 Cost breakdown (if available on tab):",
+                f"      • Concrete cost:              {conc_cost}",
+                f"      • Rebar cost:                 {rebar_cost}",
+                f"      • Formwork cost:              {formwork_cost}",
+            ],
+            fontsize=10,
+            dy=14,
+        )
         hline()
 
         # 5) Land Preparation Breakdown
         section_header("5. Land Preparation")
-        paragraph([
-            f"5.1 Total land preparation cost:    {self.lbl_land_prep_cost.text()}",
-            f"5.2 Total cut volume:               {self.lbl_land_cut_volume.text()}",
-        ], fontsize=10, dy=14)
+        paragraph(
+            [
+                f"5.1 Total land preparation cost:    {self.lbl_land_prep_cost.text()}",
+                f"5.2 Total cut volume:               {self.lbl_land_cut_volume.text()}",
+            ],
+            fontsize=10,
+            dy=14,
+        )
         hline()
 
         # 6) Manpower Breakdown
         section_header("6. Manpower")
         manhours = self.lbl_manhours.text()
-        paragraph([
-            f"6.1 Total manpower cost:            {self.lbl_manpower_cost.text()}",
-            f"6.2 Total man-hours:                {manhours}",
-            "",
-            "6.3 Notes:",
-            "      • Uses your tab totals (refresh the tab before exporting for best results).",
-        ], fontsize=10, dy=14)
+        paragraph(
+            [
+                f"6.1 Total manpower cost:            {self.lbl_manpower_cost.text()}",
+                f"6.2 Total man-hours:                {manhours}",
+                "",
+                "6.3 Notes:",
+                "      • Uses your tab totals (refresh the tab before exporting for best results).",
+            ],
+            fontsize=10,
+            dy=14,
+        )
         hline()
 
         # 7) Equipment Breakdown
@@ -623,18 +637,22 @@ class SummaryTab(QtWidgets.QWidget):
         mob_cost = self._safe_label_text(self.equipment_tab, "lbl_mob_cost", "N/A")
         overhead_cost = self._safe_label_text(self.equipment_tab, "lbl_overhead_cost", "N/A")
 
-        paragraph([
-            f"7.1 Totals:",
-            f"      • Operating hours (all machines): {equipment_hours}",
-            f"      • Total equipment cost:           {equipment_cost}",
-            "",
-            f"7.2 Fuel & overheads:",
-            f"      • Fuel consumption:              {fuel_litres}",
-            f"      • Fuel cost:                     {fuel_cost}",
-            f"      • Mobilisation + demob:          {mob_cost}",
-            f"      • Plant overhead + misc:         {overhead_cost}",
-            "",
-        ], fontsize=10, dy=14)
+        paragraph(
+            [
+                "7.1 Totals:",
+                f"      • Operating hours (all machines): {equipment_hours}",
+                f"      • Total equipment cost:           {equipment_cost}",
+                "",
+                "7.2 Fuel & overheads:",
+                f"      • Fuel consumption:              {fuel_litres}",
+                f"      • Fuel cost:                     {fuel_cost}",
+                f"      • Mobilisation + demob:          {mob_cost}",
+                f"      • Plant overhead + misc:         {overhead_cost}",
+                "",
+            ],
+            fontsize=10,
+            dy=14,
+        )
 
         equip_breakdown_widget = getattr(self.equipment_tab, "breakdown_text", None)
         equip_breakdown_lines = []
@@ -654,20 +672,19 @@ class SummaryTab(QtWidgets.QWidget):
 
         # 8) Closing Notes
         section_header("8. Notes & Assumptions")
-        paragraph([
-            "- This is an internal report for internal use and estimates only.",
-            "- For final design and construction, verify quantities, unit rates,",
-            "  and assumptions with detailed engineering drawings and site conditions.",
-        ], fontsize=9, dy=12, dim=True)
+        paragraph(
+            [
+                "- This is an internal report for internal use and estimates only.",
+                "- For final design and construction, verify quantities, unit rates,",
+                "  and assumptions with detailed engineering drawings and site conditions.",
+            ],
+            fontsize=9,
+            dy=12,
+            dim=True,
+        )
 
         c.showPage()
         c.save()
-
-
-
-
-
-
 
     # ------------------------------------------------------------------
     # File opening helper
